@@ -74,6 +74,7 @@ bool CAudio::PlayEventSound()
 	return true;
 }
 
+//DSP Coursework
 bool CAudio::LoadEngineSound(char * filename)
 {
 	result = m_FmodSystem->createSound(filename, FMOD_LOOP_NORMAL, 0, &m_engineSound);
@@ -86,6 +87,7 @@ bool CAudio::LoadEngineSound(char * filename)
 	return true;
 }
 
+//DSP Coursework
 bool CAudio::PlayEngineSound()
 {
 	result = m_FmodSystem->playSound(m_engineSound, NULL, false, &m_sfxChannel);
@@ -111,8 +113,6 @@ bool CAudio::LoadMusicStream(char *filename)
 	if (result != FMOD_OK) 
 		return false;
 	return true;
-	
-
 }
 
 // Play a music stream
@@ -127,32 +127,6 @@ bool CAudio::PlayMusicStream()
 	result = m_musicChannel->setVolume(m_musicVolume);
 
 	m_musicChannel->addDSP(0, m_dsp);
-
-	//FmodErrorCheck(result);
-	//if (result != FMOD_OK)
-	//	return false;
-
-	////connect the music filter to the music stream
-	////get the DSP head and its input
-	//m_musicChannel->getDSP(FMOD_CHANNELCONTROL_DSP_HEAD, &m_musicDSPHead);
-	//m_musicDSPHead->getInput(0, &m_musicDSPHeadInput, NULL);
-	////Disconnect them
-	//m_musicDSPHead->disconnectFrom(m_musicDSPHeadInput);
-	////Add input to the music head from the filter
-	//result = m_musicDSPHead->addInput(m_dsp);
-	//FmodErrorCheck(result);
-	//if (result != FMOD_OK)
-	//	return false;
-
-	////Add input to the filter head music DSP head input
-	//result = m_dsp->addInput(m_musicDSPHeadInput);
-	//FmodErrorCheck(result);
-	//if (result != FMOD_OK)
-	//	return false;
-
-	////set the DSP object to be active
-	//m_dsp->setActive(true);
-	//m_dspActive = false;
 
 	return true;
 }
@@ -201,6 +175,7 @@ void CAudio::ToggleMusicFilter()
 	// called externally from Game::ProcessEvents
 	// toggle the effect on/off
 	m_dspActive = !m_dspActive;
+
 	if (m_dspActive) {
 		// set the parameter to a low value
 		m_dsp->setActive(true);
@@ -209,7 +184,7 @@ void CAudio::ToggleMusicFilter()
 		// set the parameter to a high value
 		// you could also use m_musicFilter->setBypass(true) instead...
 		//m_dsp->setParameterFloat(FMOD_DSP_LOWPASS_CUTOFF, 22000);
-		m_dsp->setActive(false);
+		m_dsp->setBypass(true);
 	}
 }
 
@@ -241,15 +216,7 @@ void CAudio::ConvertToFMODVector(glm::vec3 &vector, FMOD_VECTOR *fmodVector)
 	fmodVector->z = vector.z;
 }
 
-typedef struct
-{
-	float *buffer;
-	float volume_linear;
-	int   length_samples;
-	int   channels;
-} mydsp_data_t;
-
-//21 coefficients
+//21 coefficients from filter in example
 float coefficients[] = 
 {
 	0.024700733165523316298139988589355198201,
@@ -279,15 +246,17 @@ static CircleBuffer *cbuffer;
 static int cbufflength = 1024;
 static int sample_count;
 
+static float *buffer = NULL;
+
 FMOD_RESULT F_CALLBACK DSPCallback(FMOD_DSP_STATE *dsp_state, float *inbuffer, float *outbuffer, unsigned int length, int inchannels, int *outchannels)
 {
+	////Example code. comment this out and uncomment the block below for my attempt at using a dsp generated from the matlab filter creator
 	//unsigned int samp;
 	//int chan;
 	//FMOD::DSP *thisdsp = (FMOD::DSP *)dsp_state->instance;
-
+	//
 	//const int buffer_size = 1024;
-	//int delay = 512;
-	//static float *buffer = NULL;
+	//int delay = 512;	
 
 	//if (buffer == NULL)
 	//	buffer = (float*)malloc(buffer_size * sizeof(float) * inchannels);
@@ -312,110 +281,37 @@ FMOD_RESULT F_CALLBACK DSPCallback(FMOD_DSP_STATE *dsp_state, float *inbuffer, f
 	//}
 
 	//return FMOD_OK;
+	
 	//instantiate the circle buffer if not already done
-	//if (cbuffer == NULL)
-	//	cbuffer = new CircleBuffer(cbufflength * sizeof(float) * inchannels);	
-	//
-	//mydsp_data_t *data = (mydsp_data_t *)dsp_state->plugindata;
-	//
-	//int cbufferLen = cbuffer->getBufferLength();
+	if (cbuffer == NULL)
+		cbuffer = new CircleBuffer(cbufflength * sizeof(float) * inchannels);	
+	
+	const int buffer_size = 1024;
+	int delay = 512;	
 
-	//for (int i = 0; i < length; i++)
-	//{
-	//	for (int j = 0; j < inchannels; j++)
-	//	{
-	//		cbuffer->put(inbuffer[(i * inchannels) + j]);
+	if (buffer == NULL)
+		buffer = (float*)malloc(buffer_size * sizeof(float) * inchannels);
 
-	//		//convolution
-	//		float temp = 0;
+		
+	int cbufferLen = cbuffer->getBufferLength();
 
-	//		for (int k = 0; k < cbufferLen; k++)
-	//		{
-	//			temp = cbuffer->getValueAtIndex((i * cbufferLen - 1) % cbufferLen + j) * coefficients[k];
-	//		}
-
-	//		data->buffer[(i * *outchannels) + j] = outbuffer[(i * *outchannels) + j] = 0.5f * (inbuffer[(i * inchannels) + j] * data->volume_linear + temp * (1.0 - data->volume_linear));
-	//	}
-	//}
-
-	//data->channels = inchannels;
-
-	//return FMOD_OK;
-	mydsp_data_t *data = (mydsp_data_t *)dsp_state->plugindata;
-
-	/*
-	This loop assumes inchannels = outchannels, which it will be if the DSP is created with '0'
-	as the number of channels in FMOD_DSP_DESCRIPTION.
-	Specifying an actual channel count will mean you have to take care of any number of channels coming in,
-	but outputting the number of channels specified. Generally it is best to keep the channel
-	count at 0 for maximum compatibility.
-	*/
-	for (unsigned int samp = 0; samp < length; samp++)
+	for (int i = 0; i < length; i++)
 	{
-		/*
-		Feel free to unroll this.
-		*/
-		for (int chan = 0; chan < *outchannels; chan++)
+		for (int j = 0; j < inchannels; j++)
 		{
-			/*
-			This DSP filter just halves the volume!
-			Input is modified, and sent to output.
-			*/
-			data->buffer[(samp * *outchannels) + chan] = outbuffer[(samp * inchannels) + chan] = inbuffer[(samp * inchannels) + chan] * data->volume_linear;
+			cbuffer->put(inbuffer[(i * inchannels) + j]);
+
+			//convolution
+			float temp = 0;
+
+			for (int k = 0; k < cbufferLen; k++)
+			{
+				temp = cbuffer->getValueAtIndex(cbuffer->getCurrentTail() - (i * cbufferLen - 1) % cbufferLen + j) * coefficients[k];
+			}
+
+			outbuffer[(i * *outchannels) + j] = outbuffer[(i * *outchannels) + j] = 0.5f * (inbuffer[(i * inchannels) + j] /** m_musicVolume*/ + temp * (1.0/* - m_musicVolume*/));
 		}
-	}
-
-	data->channels = inchannels;
-
-	return FMOD_OK;
-}
-
-//FMOD_RESULT F_CALLBACK DSPCreateCallback(FMOD_DSP_STATE *dsp_state)
-//{
-//	unsigned int blocksize;
-//	FMOD_RESULT result;
-//
-//	result = dsp_state->functions->getblocksize(dsp_state, &blocksize);
-//}
-FMOD_RESULT F_CALLBACK myDSPCreateCallback(FMOD_DSP_STATE *dsp_state)
-{
-	unsigned int blocksize;
-	FMOD_RESULT result;
-
-	result = dsp_state->functions->getblocksize(dsp_state, &blocksize);
-	ERRCHECK(result);
-
-	mydsp_data_t *data = (mydsp_data_t *)calloc(sizeof(mydsp_data_t), 1);
-	if (!data)
-	{
-		return FMOD_ERR_MEMORY;
-	}
-	dsp_state->plugindata = data;
-	data->volume_linear = 1.0f;
-	data->length_samples = blocksize;
-
-	data->buffer = (float *)malloc(blocksize * 8 * sizeof(float));      // *8 = maximum size allowing room for 7.1.   Could ask dsp_state->functions->getspeakermode for the right speakermode to get real speaker count.
-	if (!data->buffer)
-	{
-		return FMOD_ERR_MEMORY;
-	}
-
-	return FMOD_OK;
-}
-
-FMOD_RESULT F_CALLBACK myDSPReleaseCallback(FMOD_DSP_STATE *dsp_state)
-{
-	if (dsp_state->plugindata)
-	{
-		mydsp_data_t *data = (mydsp_data_t *)dsp_state->plugindata;
-
-		if (data->buffer)
-		{
-			free(data->buffer);
-		}
-
-		free(data);
-	}
+	}	
 
 	return FMOD_OK;
 }
