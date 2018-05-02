@@ -97,6 +97,8 @@ void CCamera::Advance(double direction)
 }
 
 // Update the camera to respond to mouse motion for rotations and keyboard for translation
+
+//This has been updated to calculate the camera's velocity based on the parameter dt (delta time)
 void CCamera::Update(double dt)
 {
 	cameraLastPosition = m_position;
@@ -107,6 +109,7 @@ void CCamera::Update(double dt)
 	SetViewByMouse();
 	TranslateByKeyboard(dt);
 
+	//Update camera velocity based on delta time
 	cameraVelocity = (m_position - cameraLastPosition) / (float)(dt / 1000);
 }
 

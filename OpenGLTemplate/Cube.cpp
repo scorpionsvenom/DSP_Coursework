@@ -9,6 +9,9 @@ CCube::~CCube()
 	Release();
 }
 
+//Creates a cube object
+//This has been modified to allow for the cube to be created with non cubic dimensions such as variable width, height and length as passed in.
+//the Filename of a texture to use is also passed in
 void CCube::Create(string filename, float width, float height, float length)
 {
 	m_texture.Load(filename);
@@ -23,6 +26,8 @@ void CCube::Create(string filename, float width, float height, float length)
 	//Write the code to add interleaved vertex attributes to the VBO
 	glm::vec3 p[24];
 	
+	//the points below are affected by the width, height and length parameters.
+
 	//front
 	p[0] = glm::vec3(-1 * width, -1 * height, 1 * length);
 	p[1] = glm::vec3(1 * width, -1 * height, 1 * length);

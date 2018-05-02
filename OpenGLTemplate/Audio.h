@@ -18,11 +18,15 @@ public:
 	bool PlayEngineSound();
 	bool LoadMusicStream(char *filename);
 	bool PlayMusicStream();
-	void Update(glm::vec3 *position, glm::vec3 *velocity, CCamera * camera);
+	void Update(glm::vec3 *position, glm::vec3 *velocity, glm::vec3 *spherePosition, CCamera * camera);
 	void CreateWall(glm::vec3 &position, float width, float height);
 	void ToggleMusicFilter();
 	void IncreaseMusicVolume();
 	void DecreaseMusicVolume();
+	void IncreaseDynamicFilterMultiplier();
+	void DecreaseDynamicFilterMultiplier();
+
+	bool switchOffLoop;
 
 private:
 		
@@ -36,19 +40,23 @@ private:
 	FMOD::Sound *m_eventSound;
 	FMOD::Sound *m_engineSound;
 	FMOD::Channel *m_sfxChannel;
-	
+	FMOD::Channel *m_dynamicFilterChannel;
+
 	FMOD::Sound *m_music;
 	FMOD::DSP *m_dsp;
-	bool m_dspActive;
+	FMOD::DSP *m_dynamicFilter;
+	bool m_dspActive = false;
 	FMOD::Channel* m_musicChannel;
 	FMOD::DSP *m_musicDSPHead;
 	FMOD::DSP *m_musicDSPHeadInput;
 	float m_musicVolume = 0.2f;
-
 	
 
 	FMOD_VECTOR fModPosition;
 	FMOD_VECTOR fModVelocity;
 	FMOD_VECTOR camPos;
-	
+	FMOD_VECTOR camVel;
+	FMOD_VECTOR camUp;
+	FMOD_VECTOR camForward;
+	FMOD_VECTOR spherePos;
 };

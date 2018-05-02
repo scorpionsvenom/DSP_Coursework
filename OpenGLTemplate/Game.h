@@ -48,6 +48,7 @@ private:
 	float m_t;
 	glm::vec3 m_spaceShipPosition;
 	glm::mat4 m_spaceShipOrientation;
+	glm::vec3 m_spherePosition;
 
 public:
 	Game();

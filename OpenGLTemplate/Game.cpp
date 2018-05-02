@@ -181,9 +181,7 @@ void Game::Initialise()
 	m_pFighterMesh->Load("resources\\models\\Fighter\\fighter1.obj");
 	// Create a sphere
 	m_pSphere->Create("resources\\textures\\", "dirtpile01.jpg", 25, 25);  // Texture downloaded from http://www.psionicgames.com/?page_id=26 on 24 Jan 2013
-
-	
-	//m_pWall->Create("resources\\textures\\evil-smiley-face.bmp", 10.0f, 4.0f, 1.0f);
+	m_spherePosition = glm::vec3(glm::vec3(0.0f, 2.0f, 150.0f));
 
 	glEnable(GL_CULL_FACE);
 
@@ -191,13 +189,16 @@ void Game::Initialise()
 
 	// Initialise audio and play background music
 	m_pAudio->Initialise();
-	m_pAudio->LoadEventSound("Resources\\Audio\\Boing.wav");												// Royalty free sound from freesound.org
+	//m_pAudio->LoadEventSound("Resources\\Audio\\Boing.wav");												// Royalty free sound from freesound.org
 
 	//DSP Coursework: the sound below was too much like white noise for the doppler effect to be audible
-	//m_pAudio->LoadEngineSound("Resources\\Audio\\146770__qubodup__rocket-boost-engine-loop.wav");			//Creative commons sound sourced here: https://freesound.org/people/qubodup/sounds/146770/#comments
+	m_pAudio->LoadEventSound("Resources\\Audio\\146770__qubodup__rocket-boost-engine-loop.wav");			//Creative commons sound sourced here: https://freesound.org/people/qubodup/sounds/146770/#comments
+	
+	//This sound proved ideal however
 	m_pAudio->LoadEngineSound("Resources\\audio\\420360__bolkmar__sfx-machine-engine.wav");					//Attribution license sound sourced here: https://freesound.org/people/bolkmar/sounds/420360/
-	//m_pAudio->LoadEngineSound("Resources\\Audio\\honk.flac");
-	m_pAudio->LoadMusicStream("Resources\\Audio\\DST-Garote.mp3");											// Royalty free music from http://www.nosoapradio.us/
+	
+	//m_pAudio->LoadMusicStream("Resources\\Audio\\DST-Garote.mp3");									// Royalty free music from http://www.nosoapradio.us/
+	m_pAudio->LoadMusicStream("Resources\\Audio\\03_Hypocrisy Of Hate.mp3");							// Courtesy of Bloodwork, my band, so I own the copyright
 	m_pAudio->PlayMusicStream();
 	m_pAudio->PlayEngineSound();
 
@@ -303,7 +304,7 @@ void Game::Render()
 		m_pFighterMesh->Render();
 	modelViewMatrixStack.Pop();
 
-	//Render the cube
+	//DSP: Render the Wall object
 	modelViewMatrixStack.Push();
 		modelViewMatrixStack.Translate(glm::vec3(0.0f, 15.0f, 50.0f));
 		//modelViewMatrixStack.Rotate(glm::vec3(0, 0, 1), 30.0f * m_dt);
@@ -313,9 +314,9 @@ void Game::Render()
 		m_pCube->Render();
 	modelViewMatrixStack.Pop();
 
-	// Render the sphere
+	// Render the sphere - this will be the source of the noise that is run through the dynamic filter
 	modelViewMatrixStack.Push();
-		modelViewMatrixStack.Translate(glm::vec3(0.0f, 2.0f, 150.0f));
+		modelViewMatrixStack.Translate(m_spherePosition);
 		modelViewMatrixStack.Scale(2.0f);
 		pMainProgram->SetUniform("matrices.modelViewMatrix", modelViewMatrixStack.Top());
 		pMainProgram->SetUniform("matrices.normalMatrix", m_pCamera->ComputeNormalMatrix(modelViewMatrixStack.Top()));
@@ -324,20 +325,7 @@ void Game::Render()
 		m_pSphere->Render();
 	modelViewMatrixStack.Pop();
 
-	//Render the wall
-	//glm::vec3 cubeOrigin = glm::vec3(10.0f, 2.0f, 10.0f);
-
-	//modelViewMatrixStack.Push();
-	//	modelViewMatrixStack.Translate(cubeOrigin);
-	//	//modelViewMatrixStack.Rotate(glm::vec3(0, 0, 1), 30.0f * m_dt);
-	//	pMainProgram->SetUniform("bUseTexture", true);
-	//	pMainProgram->SetUniform("matrices.modelViewMatrix", modelViewMatrixStack.Top());
-	//	pMainProgram->SetUniform("matrices.normalMatrix", m_pCamera->ComputeNormalMatrix(modelViewMatrixStack.Top()));
-	//	m_pWall->Render();
-	//modelViewMatrixStack.Pop();
-
-	//DSP Coursework: render the wall
-		
+			
 	// Draw the 2D graphics after the 3D graphics
 	DisplayFrameRate();
 
@@ -356,11 +344,13 @@ void Game::Update()
 	float r = 150.0f;
 	float height = 50.0f;
 
+	//calculate position of spaceship
 	glm::vec3 x = glm::vec3(1, 0, 0);
 	glm::vec3 y = glm::vec3(0, 1, 0);
 	glm::vec3 z = glm::vec3(0, 0, 1);
 	m_spaceShipPosition = r * cos(m_t) * x + height * y + r * sin(m_t) * z;
 	
+	//calculate orientation of the spacship
 	glm::vec3 T = glm::normalize(-r * sin(m_t) * x + r * cos(m_t) * z);
 	glm::vec3 N = glm::normalize(glm::cross(T, y));
 	glm::vec3 B = glm::normalize(glm::cross(N, T));
@@ -369,7 +359,7 @@ void Game::Update()
 
 	glm::vec3 velocity = (m_spaceShipPosition - previousPosition) / (float)(m_dt / 1000);
 
-	m_pAudio->Update(&m_spaceShipPosition, &velocity, m_pCamera);
+	m_pAudio->Update(&m_spaceShipPosition, &velocity, &m_spherePosition, m_pCamera);
 }
 
 
@@ -468,6 +458,7 @@ WPARAM Game::Execute()
 	return(msg.wParam);
 }
 
+//I edited this function to add responses for the 3 and 4 keys to increase or decrease the filter coefficient multiplier
 LRESULT Game::ProcessEvents(HWND window,UINT message, WPARAM w_param, LPARAM l_param) 
 {
 	LRESULT result = 0;
@@ -509,12 +500,24 @@ LRESULT Game::ProcessEvents(HWND window,UINT message, WPARAM w_param, LPARAM l_p
 			PostQuitMessage(0);
 			break;
 		case '1':
+			//the sound will loop until the player hits 1 again
+			if (m_pAudio->switchOffLoop == false) 
+				m_pAudio->switchOffLoop = true;
+			else m_pAudio->switchOffLoop = false;
 			m_pAudio->PlayEventSound();
 			break;
+			//DSP Coursework
 		case '2':
 			m_pAudio->ToggleMusicFilter();
 			break;
-			// 2) increase/decrease volume with +/-
+		//increase/decrease dynamicFilterMultiplier with 3/4. This causes the effect to dynamically increase or decrease
+		case '3':
+			m_pAudio->DecreaseDynamicFilterMultiplier();
+			break;
+		case '4':
+			m_pAudio->IncreaseDynamicFilterMultiplier();
+			break;
+		// increase/decrease volume with +/-
 		case VK_ADD:
 			m_pAudio->IncreaseMusicVolume();
 			break;
